@@ -6,9 +6,9 @@ import pandas as pd
 from gymnasium import spaces
 
 from config import env_config, LOGGER
-from data_pipeliine import DataPipeline
-from portfolio import Portfolio
-from reward import RewardClass
+from train.env.cripto.data_pipeliine import DataPipeline
+from train.env.cripto.portfolio import Portfolio
+from train.env.cripto.reward import RewardClass
 
 INVEST_VALUE = 0.05
 
@@ -92,14 +92,16 @@ class TradingCryptoEnv(gym.Env):
 
         self.total_rows = len(self.data)
         self.data_step = np.random.randint(0, self.total_rows)
+        self.data_step = + 1
         if self.is_test:
-            self.data_step = 0
+            self.data_step = 1
 
         for step in range(self.window_size):
             self.current_price = self.prices[self.data_step]
             self.price_change = 0
             if self.prices[self.data_step - 1]:
-                self.price_change = self.prices[self.data_step] - self.prices[self.data_step - 1]
+                self.price_change = self.normalized_data[self.data_step][3] - self.normalized_data[self.data_step - 1][
+                    3]
             # Add current step's observation to the data buffer
             step_observation = self._get_step_observation(step_action=0)
             self.data_buffer.append(step_observation)
@@ -121,13 +123,9 @@ class TradingCryptoEnv(gym.Env):
 
             return self.observation, self.reward, self.done, False, {}
 
-        LOGGER.info(f" Action taked: {step_action}")
 
         self.step_reward = 0.
-
-        self.current_price = self.prices[self.data_step]
-        self.price_change = self.prices[self.data_step] - self.prices[self.data_step - 1]
-
+        self.price_change = self.normalized_data[self.data_step][3] - self.normalized_data[self.data_step-1][3]
         investment_amount = self.portfolio.fiat * 0.05  # 5% of the balance
 
         if self.timer == 0:  # Si el timer es 0, el agente puede elegir una nueva acción
@@ -170,7 +168,6 @@ class TradingCryptoEnv(gym.Env):
         self.data_buffer.append(step_observation)
         self.observation = np.asarray(self.data_buffer, dtype=np.float32)
 
-        LOGGER.info(f"current_step reward: {self.reward}")
         self.data_step += 1
         self.current_step += 1
         return self.observation, self.reward, self.done, False, {}
@@ -284,7 +281,6 @@ if __name__ == "__main__":
         action = env.action_space.sample()
         obs, reward, done, _, _ = env.step(action)
         total_reward += reward
-        LOGGER.info(f" Reward: {reward}")
         # test_agent.env.render()
 
     LOGGER.info(f"Total Reward: {total_reward}")

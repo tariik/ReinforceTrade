@@ -1,6 +1,7 @@
 class Portfolio:
     def __init__(self, asset: float = 0, fiat: float = 0, interest_asset: float = 0, interest_fiat: float = 0,
                  max_position: float = 1):
+        self.last_investment = None
         self.asset = asset
         self.fiat = fiat
         self.interest_asset = interest_asset
@@ -28,10 +29,9 @@ class Portfolio:
         return self.asset * price / self.valorisation(price)
 
     def open_long(self, price, investment, fee, volatility, market_depth):
+        self.last_investment = investment
         slippage = self.calculate_slippage(price, investment, volatility, market_depth)
         execution_price = price * (1 + slippage)
-        print(price, execution_price)
-        exit()
         if self.fiat >= investment:
             self.asset += investment / execution_price * (1 - fee)
             self.fiat -= investment
@@ -48,8 +48,8 @@ class Portfolio:
             print("Error: No hay suficiente fiat para abrir una posición larga")
         return False
 
-    def close_long(self, price, fee, investment, volatility, market_depth):
-        slippage = self.calculate_slippage(price, investment, volatility, market_depth)
+    def close_long(self, price, fee, volatility, market_depth):
+        slippage = self.calculate_slippage(price,  self.last_investment, volatility, market_depth)
         execution_price = price * (1 + slippage)
         if self.asset > 0:
             fiat_return = self.asset * execution_price * (1 - fee)
@@ -68,6 +68,7 @@ class Portfolio:
             print("Error: No hay suficientes activos para cerrar una posición larga")
 
     def open_short(self, price, investment, fee, volatility, market_depth):
+        self.last_investment = investment
         slippage = self.calculate_slippage(price, investment, volatility, market_depth)
         execution_price = price * (1 + slippage)
         if self.fiat >= investment:
@@ -84,8 +85,8 @@ class Portfolio:
         else:
             print("Error: No hay suficiente fiat para abrir una posición corta")
 
-    def close_short(self, price, fee, investment, volatility, market_depth):
-        slippage = self.calculate_slippage(price, investment, volatility, market_depth)
+    def close_short(self, price, fee, volatility, market_depth):
+        slippage = self.calculate_slippage(price, self.last_investment, volatility, market_depth)
         execution_price = price * (1 + slippage)
         if self.asset < 0:
             fiat_return = -self.asset * execution_price * (1 - fee)

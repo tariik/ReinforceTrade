@@ -1,5 +1,7 @@
 import numpy as np
 
+from config import LOGGER
+
 
 class RewardClass(object):
     def __init__(self):
@@ -37,7 +39,8 @@ class RewardClass(object):
         :param step_pnl: limit order pnl
         :return: reward
         """
-        reward = (inventory_count * midpoint_change) + step_pnl
+        reward = ((inventory_count * midpoint_change * 100) + step_pnl) * 100.
+
         return reward
 
     @staticmethod
