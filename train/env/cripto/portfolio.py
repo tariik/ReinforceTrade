@@ -27,9 +27,13 @@ class Portfolio:
     def position(self, price):
         return self.asset * price / self.valorisation(price)
 
-    def open_long(self, price, investment, fee):
+    def open_long(self, price, investment, fee, volatility, market_depth):
+        slippage = self.calculate_slippage(price, investment, volatility, market_depth)
+        execution_price = price * (1 + slippage)
+        print(price, execution_price)
+        exit()
         if self.fiat >= investment:
-            self.asset += investment / price * (1 - fee)
+            self.asset += investment / execution_price * (1 - fee)
             self.fiat -= investment
             self.is_long = True
             self.net_inventory_count += 1  # Incrementar el contador de posiciones abiertas
@@ -44,16 +48,18 @@ class Portfolio:
             print("Error: No hay suficiente fiat para abrir una posición larga")
         return False
 
-    def close_long(self, price, fee):
+    def close_long(self, price, fee, investment, volatility, market_depth):
+        slippage = self.calculate_slippage(price, investment, volatility, market_depth)
+        execution_price = price * (1 + slippage)
         if self.asset > 0:
-            fiat_return = self.asset * price * (1 - fee)
-            self.realized_pnl += fiat_return - (self.asset * price)  # Actualizar PnL realizado
+            fiat_return = self.asset * execution_price * (1 - fee)
+            self.realized_pnl += fiat_return - (self.asset * execution_price)  # Actualizar PnL realizado
             self.fiat += fiat_return
             self.is_long = False
             self.net_inventory_count -= 1  # Decrementar el contador de posiciones abiertas
             self.transaction_history.append({
                 'action': 'close_long',
-                'price': price,
+                'price': execution_price,
                 'fiat_return': fiat_return,
                 'fee': fee
             })
@@ -61,31 +67,35 @@ class Portfolio:
         else:
             print("Error: No hay suficientes activos para cerrar una posición larga")
 
-    def open_short(self, price, investment, fee):
+    def open_short(self, price, investment, fee, volatility, market_depth):
+        slippage = self.calculate_slippage(price, investment, volatility, market_depth)
+        execution_price = price * (1 + slippage)
         if self.fiat >= investment:
-            self.asset -= investment / price * (1 + fee)
+            self.asset -= investment / execution_price * (1 + fee)
             self.fiat += investment
             self.is_short = True
             self.net_inventory_count += 1  # Incrementar el contador de posiciones abiertas
             self.transaction_history.append({
                 'action': 'open_short',
-                'price': price,
+                'price': execution_price,
                 'investment_amount': investment,
                 'fee': fee
             })
         else:
             print("Error: No hay suficiente fiat para abrir una posición corta")
 
-    def close_short(self, price, fee):
+    def close_short(self, price, fee, investment, volatility, market_depth):
+        slippage = self.calculate_slippage(price, investment, volatility, market_depth)
+        execution_price = price * (1 + slippage)
         if self.asset < 0:
-            fiat_return = -self.asset * price * (1 - fee)
-            self.realized_pnl += self.asset * price + fiat_return  # Actualizar PnL realizado
+            fiat_return = -self.asset * execution_price * (1 - fee)
+            self.realized_pnl += self.asset * execution_price + fiat_return  # Actualizar PnL realizado
             self.fiat -= fiat_return
             self.is_short = False
             self.net_inventory_count -= 1  # Decrementar el contador de posiciones abiertas
             self.transaction_history.append({
                 'action': 'close_short',
-                'price': price,
+                'price': execution_price,
                 'fiat_return': fiat_return,
                 'fee': fee
             })
@@ -99,6 +109,14 @@ class Portfolio:
 
     def get_unrealized_pnl(self, current_price):
         return (self.asset * current_price) - self.realized_pnl
+
+    @staticmethod
+    def calculate_slippage(price, amount, volatility, market_depth):
+        # Suponer que el deslizamiento aumenta con la volatilidad y el tamaño de la orden
+        size_impact = amount / market_depth
+        volatility_impact = volatility / price
+        slippage = (size_impact + volatility_impact) * 0.05  # Ajustar el coeficiente según sea necesario
+        return slippage
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.__dict__})"

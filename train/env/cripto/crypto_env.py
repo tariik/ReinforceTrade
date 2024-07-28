@@ -2,6 +2,7 @@ from collections import deque
 
 import gymnasium as gym
 import numpy as np
+import pandas as pd
 from gymnasium import spaces
 
 from config import env_config, LOGGER
@@ -130,11 +131,18 @@ class TradingCryptoEnv(gym.Env):
         investment_amount = self.portfolio.fiat * 0.05  # 5% of the balance
 
         if self.timer == 0:  # Si el timer es 0, el agente puede elegir una nueva acción
+            
             self.timer = self.time_window  # Reiniciar el timer al tiempo de ventana
             if step_action == 1:
-                self._handle_buy_action(self.current_price, investment_amount)
+                self.current_price = self.data.loc[self.data_step, 'close']
+                volatility = self.calculate_volatility().iloc[self.data_step]
+                market_depth = self.data.loc[self.data_step, 'volume']  # Simplified proxy for market depth
+                self._handle_buy_action(self.current_price, investment_amount, volatility, market_depth)
             elif step_action == 2:
-                self._handle_sell_action(self.current_price, investment_amount)
+                self.current_price = self.data.loc[self.data_step, 'close']
+                volatility = self.calculate_volatility().iloc[self.data_step]
+                market_depth = self.data.loc[self.data_step, 'volume']  # Simplified proxy for market depth
+                self._handle_sell_action(self.current_price, investment_amount, volatility, market_depth)
             elif step_action == 0:
                 pass  # Do nothing
 
@@ -188,17 +196,17 @@ class TradingCryptoEnv(gym.Env):
         print(f"Portfolio Value: {self.portfolio.valorisation(self.state[3])}")
         print(f"Transaction History: {self.portfolio.get_transaction_history()}")
 
-    def _handle_buy_action(self, current_price, investment_amount):
+    def _handle_buy_action(self, current_price, investment_amount, volatility, market_depth):
         if not self.portfolio.is_long and not self.portfolio.is_short:
-            self.portfolio.open_long(current_price, investment_amount, self.buy_fee)
+            self.portfolio.open_long(current_price, investment_amount, self.buy_fee, volatility, market_depth)
         elif self.portfolio.is_short:
-            self.portfolio.close_short(current_price, self.buy_fee)
+            self.portfolio.close_short(current_price, self.buy_fee, volatility, market_depth)
 
-    def _handle_sell_action(self, current_price, investment_amount):
+    def _handle_sell_action(self, current_price, investment_amount, volatility, market_depth):
         if self.portfolio.is_long:
-            self.portfolio.close_long(current_price, self.sell_fee)
+            self.portfolio.close_long(current_price, self.sell_fee, volatility, market_depth)
         elif not self.portfolio.is_short:
-            self.portfolio.open_short(current_price, investment_amount, self.sell_fee)
+            self.portfolio.open_short(current_price, investment_amount, self.sell_fee, volatility, market_depth)
 
     def _check_done(self, portfolio_value):
         if self.current_step >= len(self.data) - 1 or portfolio_value < 100:
@@ -253,6 +261,15 @@ class TradingCryptoEnv(gym.Env):
                 )
 
         return step_reward
+
+    def calculate_volatility(self):
+        # Usar ventana móvil de los últimos 10 días para el cálculo del ATR
+        high_low = self.data['high'] - self.data['low']
+        high_close = np.abs(self.data['high'] - self.data['close'].shift())
+        low_close = np.abs(self.data['low'] - self.data['close'].shift())
+        true_ranges = pd.DataFrame({'HL': high_low, 'HC': high_close, 'LC': low_close})
+        atr = true_ranges.rolling(window=10).mean().mean(axis=1)
+        return atr
 
 
 if __name__ == "__main__":
