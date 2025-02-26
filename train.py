@@ -1,45 +1,46 @@
-import os
-
-from sb3_contrib import RecurrentPPO, QRDQN, MaskablePPO
-from stable_baselines3 import DQN
+from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.monitor import Monitor
-
-from config import LOGGER, env_config
-from train.env.cripto.crypto_env import TradingCryptoEnv
+from callback import SaveOnBestTrainingRewardCallback
+from config import env_config_train
+from environment.crypto_trade.cripo_env import TradingCryptoEnv
+from net.modeli import CustomMLP
 
 if __name__ == "__main__":
-    cwd = os.path.dirname(os.path.realpath(__file__))
-    output_directory = os.path.join(cwd, 'modelos_pkl')
-    if not os.path.exists(output_directory):
-        LOGGER.info('{} does not exist. Creating Directory.'.format(output_directory))
-        os.mkdir(output_directory)
-
+    # Define the environment
+    env = TradingCryptoEnv(env_config_train)
+    # Create log dir
     log_dir = "./check_freq"
-
-    tensorboard_log = "./tensorboard_log"
-    os.makedirs(log_dir, exist_ok=True)
-
-    env = TradingCryptoEnv(env_config)
+    # Logs will be saved in log_dir/monitor.csv
     env = Monitor(env, log_dir)
 
-    # Configure the logger for TensorBoard
-    # todo: Configuración del agente hiperparámetros
-    model = MaskablePPO(
-        'MlpPolicy',
+    # Define the model
+    policy_kwargs = dict(
+        features_extractor_class=CustomMLP,
+        features_extractor_kwargs=dict(features_dim=3),
+        net_arch=[255, 255]
+    )
+    model = RecurrentPPO(
+        'MlpLstmPolicy',
         env,
+        # policy_kwargs=policy_kwargs,
+        # learning_rate=0.0007550929113028352,
+        # n_steps=2869,
         verbose=1,
-        tensorboard_log=tensorboard_log)
+        # batch_size=64,
+        # n_epochs=10,
+        # gamma=0.99,
+        # gae_lambda=0.99,
+        # ent_coef=0.002222755930887667,
+        tensorboard_log="./ppo_tensorboard/")
 
-    model.learn(total_timesteps=2000000)
+    callback = SaveOnBestTrainingRewardCallback(check_freq=10, log_dir=log_dir)
+
+    # Entrena el modelo con el callback personalizadoç
+    num_datos = 1380  # 70%
+    total_timesteps = num_datos * 1000  # Aproximadamente 1,380,400 pasos para 70% de 1972 días
+
+    model.learn(total_timesteps=total_timesteps)
+    model.learn(total_timesteps=100000, callback=callback)
 
     # Save the model
-    model.save(os.path.join(output_directory, "MaskablePPO_ALL_INDIC_FILL_PNL_BTC.pkl"))
-
-    #  todo: Configuración de evaluación en tensorboard
-    #  todo: Usar la clase de callbacks personalizada
-    #  todo: Tunear hiperparámetros (opcional)
-    #  todo: Seleccionar el mejor resultado best_checkpoint
-    #  todo: Entrenar de neuvo  el agente con la mejor configuración
-    #  todo: Guardar el agente entrenado
-    #  todo: trainer.save("agents/checkpoint")
-    #  todo: Evaluar el agente entrenado
+    model.save("./modelos/pporcc_model_binance_1d.pkl")

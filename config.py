@@ -1,21 +1,40 @@
-import logging
+import pandas as pd
+import json
 
-# singleton for logging
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
-LOGGER = logging.getLogger('crypto_rl_log')
-env_config = {
-    "initial_balance": 2000,
-    "buy_fee": 0.001,
-    "sell_fee": 0.0015,
-    "borrow_interest_rate": 0.01,
-    "window_size": 10,
-    "time_window": 5,
-    "alpha": 0.6,
-    "max_steps": 1000,
-    'train_data': 'D:\\Lab\\quant\\code\\crypto-rl\\data\\train\\',
-    'test_data': 'D:\\Lab\\quant\\code\\crypto-rl\\data\\test\\',
-    'symbol': 'BTC',
-    'timeframe': '1hour',
-    'exchanges': ['binance', 'bybit', 'okx', 'kraken', 'coinbase'],
-    'reward_type': 'default_with_fills'
+# Cargar el archivo CSV
+df = pd.read_csv('data/1day/Bittrex/btcusd_Bittrex_1day_2012-01-01_2024-07-06.csv')
+
+# Determinar el índice de corte para el 70% de entrenamiento y 30% de prueba
+train_size = int(len(df) * 0.7)
+
+# Dividir los datos en conjuntos de entrenamiento y prueba
+train_df = df[:train_size]
+test_df = df[train_size:]
+# Definir variables de configuración
+# Cargar las configuraciones desde el archivo JSON
+with open('config/env.json', 'r') as config_file:
+    config = json.load(config_file)
+
+# Define la configuración del entorno para el conjunto de entrenamiento
+env_config_train = {
+    "initial_balance": config["initial_balance"],
+    "buy_fee": config["buy_fee"],
+    "sell_fee": config["sell_fee"],
+    "borrow_interest_rate": config["borrow_interest_rate"],
+    "time_window": config["time_window"],
+    "look_back_window": config["look_back_window"],
+    "alpha": config["alpha"],
+    "df": train_df
+}
+
+# Define la configuración del entorno para el conjunto de prueba
+env_config_test = {
+    "initial_balance": config["initial_balance"],
+    "buy_fee": config["buy_fee"],
+    "sell_fee": config["sell_fee"],
+    "borrow_interest_rate": config["borrow_interest_rate"],
+    "time_window": config["time_window"],
+    "look_back_window": config["look_back_window"],
+    "alpha": config["alpha"],
+    "df": test_df
 }

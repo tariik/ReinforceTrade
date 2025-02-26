@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/ReinforceTrade.iml" filepath="$PROJECT_DIR$/.idea/ReinforceTrade.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/sb3bot.iml" filepath="$PROJECT_DIR$/.idea/sb3bot.iml" />
     </modules>
   </component>
 </project>
